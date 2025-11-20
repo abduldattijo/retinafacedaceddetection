@@ -43,6 +43,28 @@ form {
   justify-content: center;
 }
 
+.mode-group {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.mode-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.mode-option input {
+  accent-color: #6366f1;
+}
+
 .file-input {
   display: inline-flex;
   align-items: center;
@@ -102,4 +124,17 @@ button:hover {
   margin: 0.5rem 0 0;
   font-size: 0.9rem;
   color: #a5b4fc;
+}
+
+.match-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+  border: 1px solid rgba(99, 102, 241, 0.6);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
 }

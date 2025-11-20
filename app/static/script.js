@@ -10,15 +10,17 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
+  const mode = document.querySelector('input[name="mode"]:checked')?.value || "search";
   const video = fileInput.files[0];
   const body = new FormData();
   body.append("file", video);
 
-  statusText.textContent = "Uploading and detecting faces...";
+  statusText.textContent =
+    mode === "enroll" ? "Enrolling faces from this video..." : "Searching for known faces...";
   grid.innerHTML = "";
 
   try {
-    const response = await fetch("/detect", {
+    const response = await fetch(`/detect?mode=${mode}`, {
       method: "POST",
       body,
     });
@@ -28,13 +30,19 @@ form.addEventListener("submit", async (event) => {
       throw new Error(error.detail || "Detection failed");
     }
 
-    const { faces } = await response.json();
+    const { faces, matches_found: matchesFound } = await response.json();
     if (!faces.length) {
       statusText.textContent = "No faces found. Try another video.";
       return;
     }
 
-    statusText.textContent = `Found ${faces.length} face crops.`;
+    if (mode === "enroll") {
+      statusText.textContent = `Enrolled ${faces.length} faces from this clip.`;
+    } else {
+      const matchesNote = matchesFound ? ` (${matchesFound} match${matchesFound === 1 ? "" : "es"})` : "";
+      statusText.textContent = `Found ${faces.length} face crops${matchesNote}.`;
+    }
+
     faces.forEach((face) => {
       const card = document.createElement("article");
       card.className = "face-card";
@@ -48,6 +56,14 @@ form.addEventListener("submit", async (event) => {
 
       card.appendChild(img);
       card.appendChild(caption);
+
+      if (face.match) {
+        const match = document.createElement("div");
+        match.className = "match-pill";
+        match.textContent = `Match: ${face.match.origin_video} @ ${face.match.origin_timestamp}s (${face.match.similarity_score}% similar)`;
+        card.appendChild(match);
+      }
+
       grid.appendChild(card);
     });
   } catch (error) {

@@ -10,15 +10,25 @@
     <main class="container">
       <header>
         <h1>RetinaFace Video Detector</h1>
-        <p>Upload a short video to preview detected faces using RetinaFace.</p>
+        <p>Upload a short video to enroll faces or search for people across clips.</p>
       </header>
       <section class="upload-card">
         <form id="upload-form">
+          <div class="mode-group">
+            <label class="mode-option">
+              <input type="radio" name="mode" value="enroll" />
+              <span>Enroll (store faces)</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="search" checked />
+              <span>Search (find matches)</span>
+            </label>
+          </div>
           <label class="file-input">
             <input type="file" id="video-file" accept="video/*" required />
             <span>Select a video file</span>
           </label>
-          <button type="submit">Detect Faces</button>
+          <button type="submit">Run</button>
         </form>
         <p id="status" class="status"></p>
       </section>

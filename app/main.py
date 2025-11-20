@@ -11,6 +11,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from scipy.spatial.distance import cosine
 
 from app.retinaface_detector import RetinaFaceDetector
 
@@ -31,6 +32,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 retinaface_detector: RetinaFaceDetector | None
 detector_error: str | None = None
+FACE_DATABASE: list[dict] = []
 try:
     retinaface_detector = RetinaFaceDetector()
 except Exception as exc:  # pragma: no cover - initialization failure path
@@ -48,8 +50,8 @@ async def root() -> FileResponse:
 
 
 @app.post("/detect")
-async def detect_faces(file: UploadFile = File(...)) -> dict:
-    """Handle a video upload, run RetinaFace, and return cropped faces."""
+async def detect_faces(file: UploadFile = File(...), mode: str = "search") -> dict:
+    """Handle a video upload, run RetinaFace, and return cropped faces or matches."""
     if retinaface_detector is None:
         detail = detector_error or "RetinaFace detector is not initialized."
         raise HTTPException(status_code=500, detail=detail)
@@ -59,6 +61,10 @@ async def detect_faces(file: UploadFile = File(...)) -> dict:
 
     if file.content_type and not file.content_type.startswith("video/"):
         raise HTTPException(status_code=400, detail="Please upload a video file.")
+
+    normalized_mode = mode.lower().strip()
+    if normalized_mode not in {"search", "enroll"}:
+        raise HTTPException(status_code=400, detail="Mode must be either 'search' or 'enroll'.")
 
     suffix = Path(file.filename).suffix or ".mp4"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -70,22 +76,24 @@ async def detect_faces(file: UploadFile = File(...)) -> dict:
             tmp.write(chunk)
 
     try:
-        faces = _extract_faces(tmp_path, retinaface_detector)
+        results = _extract_faces(tmp_path, retinaface_detector, normalized_mode, file.filename)
     finally:
         try:
             tmp_path.unlink()
         except FileNotFoundError:
             pass
 
-    return {"faces": faces, "count": len(faces)}
+    return {"faces": results["faces"], "count": len(results["faces"]), "matches_found": results["matches"]}
 
 
 def _extract_faces(
     video_path: Path,
     detector: RetinaFaceDetector,
+    mode: str,
+    filename: str,
     max_faces: int = 60,
-) -> List[dict]:
-    """Sample frames from a video and run RetinaFace detection."""
+) -> dict:
+    """Sample frames from a video and run RetinaFace detection and recognition."""
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise HTTPException(status_code=400, detail="Could not open video.")
@@ -94,6 +102,7 @@ def _extract_faces(
     frame_interval = max(int(fps // 2) or 1, 1)  # inspect roughly twice per second
 
     faces: List[dict] = []
+    matches_count = 0
     frame_idx = 0
 
     while cap.isOpened():
@@ -115,12 +124,42 @@ def _extract_faces(
             face_img = frame[y1:y2, x1:x2]
             if face_img.size == 0:
                 continue
+
+            embedding = detector.get_embedding(face_img)
+            match_info = None
+
+            if embedding:
+                if mode == "search":
+                    best_score = 1.0
+                    best_match = None
+                    for record in FACE_DATABASE:
+                        score = cosine(record["embedding"], embedding)
+                        if score < 0.4 and score < best_score:
+                            best_score = score
+                            best_match = record
+                    if best_match:
+                        matches_count += 1
+                        match_info = {
+                            "origin_video": best_match["video_origin"],
+                            "origin_timestamp": best_match["timestamp"],
+                            "similarity_score": round((1 - best_score) * 100, 2),
+                        }
+                elif mode == "enroll":
+                    FACE_DATABASE.append(
+                        {
+                            "video_origin": filename,
+                            "embedding": embedding,
+                            "timestamp": round(frame_idx / fps, 2),
+                        }
+                    )
+
             face_uri = _encode_image(face_img)
             faces.append(
                 {
                     "timestamp": round(frame_idx / fps, 2),
                     "image": face_uri,
                     "score": detection["score"],
+                    "match": match_info,
                 }
             )
             if len(faces) >= max_faces:
@@ -130,7 +169,7 @@ def _extract_faces(
             break
 
     cap.release()
-    return faces
+    return {"faces": faces, "matches": matches_count}
 
 
 def _encode_image(image: np.ndarray) -> str:

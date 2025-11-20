@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import sys
+from copy import deepcopy
 from pathlib import Path
 from typing import List, Optional
-from copy import deepcopy
 
+import cv2
 import numpy as np
 import torch
+from facenet_pytorch import InceptionResnetV1
+from PIL import Image
+from torchvision import transforms
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # The official RetinaFace implementation now lives at the project root.
@@ -64,6 +68,24 @@ class RetinaFaceDetector:
         self.model = self._load_model(weights)
         self.model.eval()
         self.model = self.model.to(self.device)
+
+        # Face embedding model (FaceNet) for identification
+        self.recognizer: InceptionResnetV1 | None = None
+        self.face_preprocess: transforms.Compose | None = None
+        self.recognizer_error: str | None = None
+        try:
+            self.recognizer = InceptionResnetV1(pretrained="vggface2").eval().to(self.device)
+            self.face_preprocess = transforms.Compose(
+                [
+                    transforms.Resize((160, 160)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                ]
+            )
+        except Exception as exc:  # pragma: no cover - initialization failure path
+            self.recognizer_error = f"Failed to load recognition model: {exc}"
+            self.recognizer = None
+            self.face_preprocess = None
 
     def _load_model(self, weights_path: Path) -> RetinaFace:
         pretrained = torch.load(weights_path, map_location=self.device)
@@ -148,3 +170,17 @@ class RetinaFaceDetector:
                 }
             )
         return results
+
+    def get_embedding(self, face_img_numpy: np.ndarray) -> List[float] | None:
+        """Convert a cropped BGR face into a FaceNet embedding."""
+        if self.recognizer is None or self.face_preprocess is None:
+            return None
+
+        try:
+            face_pil = Image.fromarray(cv2.cvtColor(face_img_numpy, cv2.COLOR_BGR2RGB))
+            face_tensor = self.face_preprocess(face_pil).unsqueeze(0).to(self.device)
+            with torch.inference_mode():
+                embedding = self.recognizer(face_tensor)
+            return embedding[0].cpu().numpy().tolist()
+        except Exception:
+            return None
