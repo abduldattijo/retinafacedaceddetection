@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RetinaFace Video Detector</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>RetinaFace Video Detector</h1>
+        <p>Upload a short video to preview detected faces using RetinaFace.</p>
+      </header>
+      <section class="upload-card">
+        <form id="upload-form">
+          <label class="file-input">
+            <input type="file" id="video-file" accept="video/*" required />
+            <span>Select a video file</span>
+          </label>
+          <button type="submit">Detect Faces</button>
+        </form>
+        <p id="status" class="status"></p>
+      </section>
+      <section>
+        <h2>Detected Faces</h2>
+        <div id="faces-grid" class="faces-grid"></div>
+      </section>
+    </main>
+    <script src="/static/script.js" defer></script>
+  </body>
+</html>
