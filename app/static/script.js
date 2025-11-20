@@ -2,6 +2,16 @@ const form = document.getElementById("upload-form");
 const fileInput = document.getElementById("video-file");
 const statusText = document.getElementById("status");
 const grid = document.getElementById("faces-grid");
+const thresholdSlider = document.getElementById("match-threshold");
+const thresholdValue = document.getElementById("threshold-value");
+
+if (thresholdSlider && thresholdValue) {
+  const updateDisplay = () => {
+    thresholdValue.textContent = Number(thresholdSlider.value).toFixed(2);
+  };
+  thresholdSlider.addEventListener("input", updateDisplay);
+  updateDisplay();
+}
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -11,6 +21,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   const mode = document.querySelector('input[name="mode"]:checked')?.value || "search";
+  const threshold = thresholdSlider ? Number(thresholdSlider.value || 0.4) : 0.4;
   const video = fileInput.files[0];
   const body = new FormData();
   body.append("file", video);
@@ -20,7 +31,7 @@ form.addEventListener("submit", async (event) => {
   grid.innerHTML = "";
 
   try {
-    const response = await fetch(`/detect?mode=${mode}`, {
+    const response = await fetch(`/detect?mode=${mode}&threshold=${threshold}`, {
       method: "POST",
       body,
     });

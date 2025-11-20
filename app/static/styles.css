@@ -65,6 +65,28 @@ form {
   accent-color: #6366f1;
 }
 
+.threshold-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 240px;
+}
+
+.threshold-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.threshold-control input[type="range"] {
+  width: 180px;
+}
+
+.threshold-control span {
+  font-variant-numeric: tabular-nums;
+  color: #c7d2fe;
+}
+
 .file-input {
   display: inline-flex;
   align-items: center;

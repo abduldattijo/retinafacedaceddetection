@@ -50,7 +50,11 @@ async def root() -> FileResponse:
 
 
 @app.post("/detect")
-async def detect_faces(file: UploadFile = File(...), mode: str = "search") -> dict:
+async def detect_faces(
+    file: UploadFile = File(...),
+    mode: str = "search",
+    threshold: float = 0.4,
+) -> dict:
     """Handle a video upload, run RetinaFace, and return cropped faces or matches."""
     if retinaface_detector is None:
         detail = detector_error or "RetinaFace detector is not initialized."
@@ -66,6 +70,13 @@ async def detect_faces(file: UploadFile = File(...), mode: str = "search") -> di
     if normalized_mode not in {"search", "enroll"}:
         raise HTTPException(status_code=400, detail="Mode must be either 'search' or 'enroll'.")
 
+    try:
+        match_threshold = float(threshold)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Threshold must be a number between 0 and 1.")
+    if not 0 < match_threshold <= 1:
+        raise HTTPException(status_code=400, detail="Threshold must be > 0 and <= 1.")
+
     suffix = Path(file.filename).suffix or ".mp4"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp_path = Path(tmp.name)
@@ -76,7 +87,13 @@ async def detect_faces(file: UploadFile = File(...), mode: str = "search") -> di
             tmp.write(chunk)
 
     try:
-        results = _extract_faces(tmp_path, retinaface_detector, normalized_mode, file.filename)
+        results = _extract_faces(
+            tmp_path,
+            retinaface_detector,
+            normalized_mode,
+            file.filename,
+            match_threshold,
+        )
     finally:
         try:
             tmp_path.unlink()
@@ -91,6 +108,7 @@ def _extract_faces(
     detector: RetinaFaceDetector,
     mode: str,
     filename: str,
+    match_threshold: float,
     max_faces: int = 60,
 ) -> dict:
     """Sample frames from a video and run RetinaFace detection and recognition."""
@@ -134,7 +152,7 @@ def _extract_faces(
                     best_match = None
                     for record in FACE_DATABASE:
                         score = cosine(record["embedding"], embedding)
-                        if score < 0.4 and score < best_score:
+                        if score < match_threshold and score < best_score:
                             best_score = score
                             best_match = record
                     if best_match:

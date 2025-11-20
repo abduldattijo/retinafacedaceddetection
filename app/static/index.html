@@ -24,6 +24,13 @@
               <span>Search (find matches)</span>
             </label>
           </div>
+          <div class="threshold-group">
+            <label for="match-threshold">Match threshold (lower = stricter):</label>
+            <div class="threshold-control">
+              <input type="range" id="match-threshold" min="0.2" max="0.8" step="0.05" value="0.4" />
+              <span id="threshold-value">0.40</span>
+            </div>
+          </div>
           <label class="file-input">
             <input type="file" id="video-file" accept="video/*" required />
             <span>Select a video file</span>

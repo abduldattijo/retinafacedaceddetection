@@ -31,6 +31,7 @@ Now supports **face recognition and re-identification**: enroll faces from one v
 
 - **Enroll mode**: Upload a clip with the toggle set to *Enroll* (or call `/detect?mode=enroll`). The app extracts faces, builds 512-dim FaceNet embeddings, and stores them in memory (`FACE_DATABASE`) along with the source video name and timestamp.
 - **Search mode**: Upload another clip with the toggle set to *Search* (or call `/detect?mode=search`). Each detected face is embedded and compared against the in-memory database using cosine distance. Matches are returned with the originating video and timestamp and shown in the UI.
+- **Match threshold**: Use the UI slider (or pass `threshold=<0-1>` to `/detect`) to control strictness; lower values are stricter (defaults to 0.4).
 
 ## How It Works
 
@@ -41,7 +42,7 @@ Now supports **face recognition and re-identification**: enroll faces from one v
 ## Tips
 
 - Short clips (<20 MB) work best in the browser; larger videos will take longer to upload and process.
-- You can tweak sampling density, the face cap, or the match threshold (defaults to cosine distance < 0.4) in `_extract_faces` in `app/main.py`.
+- You can tweak sampling density, the face cap, or the match threshold (defaults to cosine distance < 0.4) via the UI slider or directly in `_extract_faces` in `app/main.py`.
 - The in-memory `FACE_DATABASE` is reset when the server restarts; for production, persist embeddings in a proper store (Postgres, Redis, Milvus/FAISS, etc.).
 - If you plan to deploy, consider moving uploads to object storage and persisting detections instead of returning base64 blobs.
 - Running on CPU works out of the box. If you have a GPU available, adjust `RetinaFaceDetector` inside `app/retinaface_detector.py` to set `use_cpu=False`.
