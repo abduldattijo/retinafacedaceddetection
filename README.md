@@ -30,14 +30,14 @@ Now supports **face recognition and re-identification**: enroll faces from one v
 ## Enrollment vs Search
 
 - **Enroll mode**: Upload a clip with the toggle set to *Enroll* (or call `/detect?mode=enroll`). The app extracts faces, builds 512-dim FaceNet embeddings, and stores them in memory (`FACE_DATABASE`) along with the source video name and timestamp.
-- **Search mode**: Upload another clip with the toggle set to *Search* (or call `/detect?mode=search`). Each detected face is embedded and compared against the in-memory database using cosine distance. Matches are returned with the originating video and timestamp and shown in the UI.
+- **Search mode**: Upload another clip with the toggle set to *Search* (or call `/detect?mode=search`). Each detected face is embedded and compared against the in-memory database using cosine distance. Matches are returned with the originating video, timestamp, similarity, and the enrolled face image for side-by-side review in the UI.
 - **Match threshold**: Use the UI slider (or pass `threshold=<0-1>` to `/detect`) to control strictness; lower values are stricter (defaults to 0.4).
 
 ## How It Works
 
 - The `/detect` endpoint saves the uploaded video temporarily, samples frames about twice per second, and runs the cloned PyTorch RetinaFace model on each sampled frame.
 - For every detected face a PNG crop is encoded as a base64 data URI (capped at 60 faces for responsiveness) and returned to the browser. When recognition is enabled, each crop also carries an embedding and optional match info.
-- The frontend grid displays each crop with its timestamp; matches show the originating video, timestamp, and similarity score.
+- The frontend grid displays each crop with its timestamp; matches now show the enrolled face alongside the searched face, plus originating video, timestamp, and similarity score for quick analyst validation.
 
 ## Tips
 

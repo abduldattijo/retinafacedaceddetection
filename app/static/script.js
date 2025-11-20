@@ -58,21 +58,35 @@ form.addEventListener("submit", async (event) => {
       const card = document.createElement("article");
       card.className = "face-card";
 
-      const img = document.createElement("img");
-      img.src = face.image;
-      img.alt = `Face at ${face.timestamp}s`;
-
+      const currentBlock = document.createElement("div");
+      currentBlock.className = "face-block";
+      const currentImg = document.createElement("img");
+      currentImg.src = face.image;
+      currentImg.alt = `Face at ${face.timestamp}s`;
       const caption = document.createElement("p");
       caption.textContent = `${face.timestamp}s`;
-
-      card.appendChild(img);
-      card.appendChild(caption);
+      currentBlock.appendChild(currentImg);
+      currentBlock.appendChild(caption);
+      card.appendChild(currentBlock);
 
       if (face.match) {
-        const match = document.createElement("div");
-        match.className = "match-pill";
-        match.textContent = `Match: ${face.match.origin_video} @ ${face.match.origin_timestamp}s (${face.match.similarity_score}% similar)`;
-        card.appendChild(match);
+        const matchMeta = document.createElement("div");
+        matchMeta.className = "match-pill";
+        matchMeta.textContent = `Match: ${face.match.origin_video} @ ${face.match.origin_timestamp}s (${face.match.similarity_score}% similar)`;
+        card.appendChild(matchMeta);
+
+        if (face.match.match_image) {
+          const matchBlock = document.createElement("div");
+          matchBlock.className = "face-block match-block";
+          const matchImg = document.createElement("img");
+          matchImg.src = face.match.match_image;
+          matchImg.alt = `Matched face from ${face.match.origin_video}`;
+          const matchCaption = document.createElement("p");
+          matchCaption.textContent = `From ${face.match.origin_video}`;
+          matchBlock.appendChild(matchImg);
+          matchBlock.appendChild(matchCaption);
+          card.appendChild(matchBlock);
+        }
       }
 
       grid.appendChild(card);

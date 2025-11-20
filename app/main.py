@@ -32,6 +32,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 retinaface_detector: RetinaFaceDetector | None
 detector_error: str | None = None
+# In-memory gallery: stores embedding plus the original face crop for visual inspection
 FACE_DATABASE: list[dict] = []
 try:
     retinaface_detector = RetinaFaceDetector()
@@ -143,6 +144,8 @@ def _extract_faces(
             if face_img.size == 0:
                 continue
 
+            # Encode face early so we can store it during enrollment and return it for matches
+            face_uri = _encode_image(face_img)
             embedding = detector.get_embedding(face_img)
             match_info = None
 
@@ -161,6 +164,7 @@ def _extract_faces(
                             "origin_video": best_match["video_origin"],
                             "origin_timestamp": best_match["timestamp"],
                             "similarity_score": round((1 - best_score) * 100, 2),
+                            "match_image": best_match.get("face_image"),
                         }
                 elif mode == "enroll":
                     FACE_DATABASE.append(
@@ -168,10 +172,10 @@ def _extract_faces(
                             "video_origin": filename,
                             "embedding": embedding,
                             "timestamp": round(frame_idx / fps, 2),
+                            "face_image": face_uri,
                         }
                     )
 
-            face_uri = _encode_image(face_img)
             faces.append(
                 {
                     "timestamp": round(frame_idx / fps, 2),
