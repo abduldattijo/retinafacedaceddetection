@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import tempfile
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import cv2
 import numpy as np
@@ -18,6 +19,11 @@ from app.retinaface_detector import RetinaFaceDetector
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+
+
+def _normalize_name(name: str) -> str:
+    """Normalize filenames for matching (basename, trimmed, lowercase, no extra spaces)."""
+    return Path(name).name.strip().lower().replace(" ", "")
 
 app = FastAPI(title="RetinaFace Video Detector")
 
@@ -79,20 +85,26 @@ async def detect_faces(
         raise HTTPException(status_code=400, detail="Threshold must be > 0 and <= 1.")
 
     suffix = Path(file.filename).suffix or ".mp4"
+    hasher = hashlib.sha1()
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp_path = Path(tmp.name)
         while True:
             chunk = await file.read(1024 * 1024)
             if not chunk:
                 break
+            hasher.update(chunk)
             tmp.write(chunk)
+    video_hash = hasher.hexdigest()
 
     try:
+        display_name = Path(file.filename).name or file.filename
         results = _extract_faces(
             tmp_path,
             retinaface_detector,
             normalized_mode,
-            Path(file.filename).name or file.filename,
+            display_name,
+            _normalize_name(display_name),
+            video_hash,
             match_threshold,
         )
     finally:
@@ -101,7 +113,13 @@ async def detect_faces(
         except FileNotFoundError:
             pass
 
-    return {"faces": results["faces"], "count": len(results["faces"]), "matches_found": results["matches"]}
+    return {
+        "faces": results["faces"],
+        "count": len(results["faces"]),
+        "matches_found": results["matches"],
+        "current_video": display_name,
+        "mode": normalized_mode,
+    }
 
 
 @app.post("/reset_db")
@@ -112,16 +130,33 @@ async def reset_database() -> dict:
     return {"message": "Database cleared successfully. No faces are currently stored."}
 
 
+@app.get("/debug_db")
+async def debug_database() -> dict:
+    """Return summary of enrolled faces for debugging."""
+    summary = []
+    for idx, record in enumerate(FACE_DATABASE):
+        summary.append({
+            "index": idx,
+            "video_origin": record.get("video_origin"),
+            "video_origin_normalized": record.get("video_origin_normalized"),
+            "video_hash": record.get("video_hash", "")[:8] + "...",
+            "timestamp": record.get("timestamp"),
+        })
+    return {"total_faces": len(FACE_DATABASE), "records": summary}
+
+
 def _extract_faces(
     video_path: Path,
     detector: RetinaFaceDetector,
     mode: str,
     filename: str,
+    canonical_filename: str,
+    video_hash: Optional[str],
     match_threshold: float,
     max_faces: int = 60,
 ) -> dict:
     """Sample frames from a video and run RetinaFace detection and recognition."""
-    canonical_filename = Path(filename).name or filename
+    original_filename = filename
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise HTTPException(status_code=400, detail="Could not open video.")
@@ -164,7 +199,9 @@ def _extract_faces(
                     best_match = None
                     for record in FACE_DATABASE:
                         # Enforce cross-video matching only: skip faces from the same source video
-                        if Path(record["video_origin"]).name == canonical_filename:
+                        if _normalize_name(record.get("video_origin", "")) == canonical_filename:
+                            continue
+                        if video_hash and record.get("video_hash") and record["video_hash"] == video_hash:
                             continue
                         score = cosine(record["embedding"], embedding)
                         if score < match_threshold and score < best_score:
@@ -181,7 +218,9 @@ def _extract_faces(
                 elif mode == "enroll":
                     FACE_DATABASE.append(
                         {
-                            "video_origin": canonical_filename,
+                            "video_origin": original_filename,
+                            "video_hash": video_hash,
+                            "video_origin_normalized": canonical_filename,
                             "embedding": embedding,
                             "timestamp": round(frame_idx / fps, 2),
                             "face_image": face_uri,

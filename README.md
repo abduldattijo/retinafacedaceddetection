@@ -12,8 +12,8 @@ Now supports **face recognition and re-identification**: enroll faces from one v
 2. **Install dependencies** (first run will download FaceNet weights for recognition)
 
    ```bash
-   
-   source .venv1/bin/activate
+   cd Pytorch_Retinaface
+   source .venv/bin/activate
    
    pip install -r requirements.txt
    ```

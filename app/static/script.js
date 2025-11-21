@@ -41,7 +41,7 @@ form.addEventListener("submit", async (event) => {
       throw new Error(error.detail || "Detection failed");
     }
 
-    const { faces, matches_found: matchesFound } = await response.json();
+    const { faces, matches_found: matchesFound, current_video: currentVideo } = await response.json();
     if (!faces.length) {
       statusText.textContent = "No faces found. Try another video.";
       return;
@@ -64,7 +64,7 @@ form.addEventListener("submit", async (event) => {
       currentImg.src = face.image;
       currentImg.alt = `Face at ${face.timestamp}s`;
       const caption = document.createElement("p");
-      caption.textContent = `${face.timestamp}s`;
+      caption.innerHTML = `<strong>From: ${currentVideo}</strong><br>${face.timestamp}s`;
       currentBlock.appendChild(currentImg);
       currentBlock.appendChild(caption);
       card.appendChild(currentBlock);
@@ -72,7 +72,7 @@ form.addEventListener("submit", async (event) => {
       if (face.match) {
         const matchMeta = document.createElement("div");
         matchMeta.className = "match-pill";
-        matchMeta.textContent = `Match: ${face.match.origin_video} @ ${face.match.origin_timestamp}s (${face.match.similarity_score}% similar)`;
+        matchMeta.textContent = `✓ MATCH FOUND (${face.match.similarity_score}% similar)`;
         card.appendChild(matchMeta);
 
         if (face.match.match_image) {
@@ -82,7 +82,7 @@ form.addEventListener("submit", async (event) => {
           matchImg.src = face.match.match_image;
           matchImg.alt = `Matched face from ${face.match.origin_video}`;
           const matchCaption = document.createElement("p");
-          matchCaption.textContent = `From ${face.match.origin_video}`;
+          matchCaption.innerHTML = `<strong>Matched From: ${face.match.origin_video}</strong><br>${face.match.origin_timestamp}s`;
           matchBlock.appendChild(matchImg);
           matchBlock.appendChild(matchCaption);
           card.appendChild(matchBlock);
