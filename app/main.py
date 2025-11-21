@@ -154,6 +154,9 @@ def _extract_faces(
                     best_score = 1.0
                     best_match = None
                     for record in FACE_DATABASE:
+                        # Enforce cross-video matching only: skip faces from the same source video
+                        if record["video_origin"] == filename:
+                            continue
                         score = cosine(record["embedding"], embedding)
                         if score < match_threshold and score < best_score:
                             best_score = score
