@@ -4,6 +4,7 @@ const statusText = document.getElementById("status");
 const grid = document.getElementById("faces-grid");
 const thresholdSlider = document.getElementById("match-threshold");
 const thresholdValue = document.getElementById("threshold-value");
+const resetBtn = document.getElementById("reset-btn");
 
 if (thresholdSlider && thresholdValue) {
   const updateDisplay = () => {
@@ -11,6 +12,26 @@ if (thresholdSlider && thresholdValue) {
   };
   thresholdSlider.addEventListener("input", updateDisplay);
   updateDisplay();
+}
+
+if (resetBtn) {
+  resetBtn.addEventListener("click", async () => {
+    if (!confirm("Clear all enrolled faces from the database?")) {
+      return;
+    }
+    try {
+      const response = await fetch("/reset_db", { method: "POST" });
+      if (response.ok) {
+        statusText.textContent = "✓ Database cleared successfully!";
+        grid.innerHTML = "";
+      } else {
+        statusText.textContent = "Failed to reset database.";
+      }
+    } catch (error) {
+      console.error(error);
+      statusText.textContent = "Error resetting database.";
+    }
+  });
 }
 
 form.addEventListener("submit", async (event) => {
