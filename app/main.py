@@ -92,7 +92,7 @@ async def detect_faces(
             tmp_path,
             retinaface_detector,
             normalized_mode,
-            file.filename,
+            Path(file.filename).name or file.filename,
             match_threshold,
         )
     finally:
@@ -104,6 +104,14 @@ async def detect_faces(
     return {"faces": results["faces"], "count": len(results["faces"]), "matches_found": results["matches"]}
 
 
+@app.post("/reset_db")
+async def reset_database() -> dict:
+    """Clear all enrolled faces from the in-memory gallery."""
+    global FACE_DATABASE
+    FACE_DATABASE = []
+    return {"message": "Database cleared successfully. No faces are currently stored."}
+
+
 def _extract_faces(
     video_path: Path,
     detector: RetinaFaceDetector,
@@ -113,6 +121,7 @@ def _extract_faces(
     max_faces: int = 60,
 ) -> dict:
     """Sample frames from a video and run RetinaFace detection and recognition."""
+    canonical_filename = Path(filename).name or filename
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         raise HTTPException(status_code=400, detail="Could not open video.")
@@ -155,7 +164,7 @@ def _extract_faces(
                     best_match = None
                     for record in FACE_DATABASE:
                         # Enforce cross-video matching only: skip faces from the same source video
-                        if record["video_origin"] == filename:
+                        if Path(record["video_origin"]).name == canonical_filename:
                             continue
                         score = cosine(record["embedding"], embedding)
                         if score < match_threshold and score < best_score:
@@ -172,7 +181,7 @@ def _extract_faces(
                 elif mode == "enroll":
                     FACE_DATABASE.append(
                         {
-                            "video_origin": filename,
+                            "video_origin": canonical_filename,
                             "embedding": embedding,
                             "timestamp": round(frame_idx / fps, 2),
                             "face_image": face_uri,
